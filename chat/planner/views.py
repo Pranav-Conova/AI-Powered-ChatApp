@@ -27,6 +27,15 @@ def itinerary_detail(request, itinerary_id):
         it = Itinerary.objects.get(pk=itinerary_id)
     except Itinerary.DoesNotExist:
         return JsonResponse({"error": "Itinerary not found"}, status=404)
+
+    # Public itineraries are accessible to everyone; private ones require
+    # the requesting user to be one of the couple's partners.
+    if not it.is_public:
+        if not request.user.is_authenticated:
+            return JsonResponse({"error": "Authentication required"}, status=401)
+        if not it.couple.partners.filter(pk=request.user.pk).exists():
+            return JsonResponse({"error": "Forbidden"}, status=403)
+
     events = ItineraryEvent.objects.filter(itinerary=it).select_related("venue")
     event_data = [
         {

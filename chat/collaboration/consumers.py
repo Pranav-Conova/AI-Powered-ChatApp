@@ -21,12 +21,24 @@ class ItineraryConsumer(AsyncWebsocketConsumer):
         )
 
     async def receive(self, text_data):
-        data = json.loads(text_data)
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
+            await self.send(text_data=json.dumps({"error": "Invalid JSON"}))
+            return
+
+        message = data.get("message")
+        if not message:
+            await self.send(
+                text_data=json.dumps({"error": "Missing 'message' field"})
+            )
+            return
+
         await self.channel_layer.group_send(
             self.room_group_name,
             {
                 "type": "itinerary_update",
-                "message": data["message"],
+                "message": message,
             },
         )
 

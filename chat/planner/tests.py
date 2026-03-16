@@ -91,7 +91,7 @@ class PlannerViewTest(TestCase):
         resp = self.client.get("/planner/itineraries/9999/")
         self.assertEqual(resp.status_code, 404)
 
-    def test_itinerary_detail_found(self):
+    def test_itinerary_detail_public(self):
         u = User.objects.create_user(username="ivy", password="pass1234")
         couple = Couple.objects.create()
         couple.partners.add(u)
@@ -100,7 +100,51 @@ class PlannerViewTest(TestCase):
             title="City Tour",
             start_date=datetime.date(2026, 6, 1),
             end_date=datetime.date(2026, 6, 2),
+            is_public=True,
         )
         resp = self.client.get(f"/planner/itineraries/{it.id}/")
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.json()["title"], "City Tour")
+
+    def test_itinerary_detail_private_unauthenticated(self):
+        u = User.objects.create_user(username="ivy2", password="pass1234")
+        couple = Couple.objects.create()
+        couple.partners.add(u)
+        it = Itinerary.objects.create(
+            couple=couple,
+            title="Secret Plan",
+            start_date=datetime.date(2026, 6, 1),
+            end_date=datetime.date(2026, 6, 2),
+        )
+        resp = self.client.get(f"/planner/itineraries/{it.id}/")
+        self.assertEqual(resp.status_code, 401)
+
+    def test_itinerary_detail_private_forbidden(self):
+        owner = User.objects.create_user(username="owner1", password="pass1234")
+        stranger = User.objects.create_user(username="stranger1", password="pass1234")
+        couple = Couple.objects.create()
+        couple.partners.add(owner)
+        it = Itinerary.objects.create(
+            couple=couple,
+            title="Private Trip",
+            start_date=datetime.date(2026, 6, 1),
+            end_date=datetime.date(2026, 6, 2),
+        )
+        self.client.login(username="stranger1", password="pass1234")
+        resp = self.client.get(f"/planner/itineraries/{it.id}/")
+        self.assertEqual(resp.status_code, 403)
+
+    def test_itinerary_detail_private_authorized(self):
+        u = User.objects.create_user(username="member1", password="pass1234")
+        couple = Couple.objects.create()
+        couple.partners.add(u)
+        it = Itinerary.objects.create(
+            couple=couple,
+            title="Our Trip",
+            start_date=datetime.date(2026, 6, 1),
+            end_date=datetime.date(2026, 6, 2),
+        )
+        self.client.login(username="member1", password="pass1234")
+        resp = self.client.get(f"/planner/itineraries/{it.id}/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["title"], "Our Trip")

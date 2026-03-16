@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: ai-powered-chat-app
+    runtime: python
+    rootDir: chat
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
+    startCommand: gunicorn chat.asgi:application --worker-class uvicorn.workers.UvicornWorker
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
